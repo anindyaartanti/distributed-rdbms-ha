@@ -1,0 +1,19 @@
+{
+  "Debug": true,
+  "ListenAddress": ":3000",
+  "MySQLTopologyUser": "orchestrator",
+  "MySQLTopologyPassword": "orchpass",
+  "MySQLOrchestratorHost": "orchestrator-db",
+  "MySQLOrchestratorPort": 3306,
+  "MySQLOrchestratorDatabase": "orchestrator",
+  "MySQLOrchestratorUser": "orc_server_user",
+  "MySQLOrchestratorPassword": "orc_server_password",
+  "InstancePollSeconds": 5,
+  "RecoveryPeriodBlockSeconds": 15,
+  "RecoverMasterClusterFilters": ["*"],
+  "RecoverIntermediateMasterClusterFilters": ["*"],
+  "ApplyMySQLPromotionAfterMasterFailover": true,
+  "FailMasterPromotionIfSQLThreadNotUpToDate": true,
+  "PostMasterFailoverProcesses": ["/usr/local/bin/on-failover.sh"],
+  "PostIntermediateMasterFailoverProcesses": ["/usr/local/bin/on-failover.sh"]
+}

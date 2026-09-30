@@ -1,0 +1,12 @@
+[mysqld]
+log-bin                    = mysql-bin
+binlog_format              = ROW
+relay-log                  = relay-bin
+gtid_mode                  = ON
+enforce_gtid_consistency   = ON
+read_only                  = ON
+log_slave_updates          = ON
+relay_log_recovery         = ON
+plugin-load-add            = rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so
+loose_rpl_semi_sync_slave_enabled = ON
+default_authentication_plugin = mysql_native_password

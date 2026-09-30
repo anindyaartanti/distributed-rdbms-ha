@@ -1,0 +1,182 @@
+name: distributed-rdbms-ha
+
+networks:
+  dbnet:
+    driver: bridge
+
+volumes:
+  orc-db-data:
+  shard-a-master-data:
+  shard-a-rep1-data:
+  shard-a-rep2-data:
+  shard-b-master-data:
+  shard-b-rep1-data:
+  shard-b-rep2-data:
+
+x-mysql-healthcheck: &mysql-healthcheck
+  test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpass"]
+  interval: 5s
+  timeout: 5s
+  retries: 30
+  start_period: 20s
+
+services:
+  orchestrator-db:
+    image: mysql:8.0
+    container_name: orchestrator-db
+    hostname: orchestrator-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: orchestrator
+      MYSQL_USER: orc_server_user
+      MYSQL_PASSWORD: orc_server_password
+    ports:
+      - "3310:3306"
+    volumes:
+      - orc-db-data:/var/lib/mysql
+    healthcheck: *mysql-healthcheck
+    networks: [dbnet]
+
+  shard-a-master:
+    image: rdbms-master:latest
+    container_name: shard-a-master
+    hostname: shard-a-master
+    command: ["--server-id=1"]
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+    ports:
+      - "3406:3306"
+    volumes:
+      - ./init-common.sql:/docker-entrypoint-initdb.d/00-init-common.sql:ro
+      - ./init-shard-a.sql:/docker-entrypoint-initdb.d/01-init-shard-a.sql:ro
+      - shard-a-master-data:/var/lib/mysql
+    healthcheck: *mysql-healthcheck
+    networks: [dbnet]
+
+  shard-a-rep1:
+    image: rdbms-slave:latest
+    container_name: shard-a-rep1
+    hostname: shard-a-rep1
+    command: ["--server-id=11", "--report-host=shard-a-rep1"]
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+    ports:
+      - "3407:3306"
+    volumes:
+      - shard-a-rep1-data:/var/lib/mysql
+    depends_on:
+      shard-a-master:
+        condition: service_healthy
+    healthcheck: *mysql-healthcheck
+    networks: [dbnet]
+
+  shard-a-rep2:
+    image: rdbms-slave:latest
+    container_name: shard-a-rep2
+    hostname: shard-a-rep2
+    command: ["--server-id=12", "--report-host=shard-a-rep2"]
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+    ports:
+      - "3408:3306"
+    volumes:
+      - shard-a-rep2-data:/var/lib/mysql
+    depends_on:
+      shard-a-master:
+        condition: service_healthy
+    healthcheck: *mysql-healthcheck
+    networks: [dbnet]
+
+  shard-b-master:
+    image: rdbms-master:latest
+    container_name: shard-b-master
+    hostname: shard-b-master
+    command: ["--server-id=2"]
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+    ports:
+      - "3416:3306"
+    volumes:
+      - ./init-common.sql:/docker-entrypoint-initdb.d/00-init-common.sql:ro
+      - ./init-shard-b.sql:/docker-entrypoint-initdb.d/01-init-shard-b.sql:ro
+      - shard-b-master-data:/var/lib/mysql
+    healthcheck: *mysql-healthcheck
+    networks: [dbnet]
+
+  shard-b-rep1:
+    image: rdbms-slave:latest
+    container_name: shard-b-rep1
+    hostname: shard-b-rep1
+    command: ["--server-id=21", "--report-host=shard-b-rep1"]
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+    ports:
+      - "3417:3306"
+    volumes:
+      - shard-b-rep1-data:/var/lib/mysql
+    depends_on:
+      shard-b-master:
+        condition: service_healthy
+    healthcheck: *mysql-healthcheck
+    networks: [dbnet]
+
+  shard-b-rep2:
+    image: rdbms-slave:latest
+    container_name: shard-b-rep2
+    hostname: shard-b-rep2
+    command: ["--server-id=22", "--report-host=shard-b-rep2"]
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+    ports:
+      - "3418:3306"
+    volumes:
+      - shard-b-rep2-data:/var/lib/mysql
+    depends_on:
+      shard-b-master:
+        condition: service_healthy
+    healthcheck: *mysql-healthcheck
+    networks: [dbnet]
+
+  haproxy:
+    image: haproxy:2.9
+    container_name: haproxy
+    hostname: haproxy
+    command: ["haproxy", "-S", "/shared/haproxy.sock", "-f", "/shared/haproxy.cfg"]
+    ports:
+      - "13306:3306"
+      - "13307:3307"
+      - "13316:3316"
+      - "13317:3317"
+      - "8404:8404"
+    volumes:
+      - ./runtime:/shared
+    depends_on:
+      shard-a-master:
+        condition: service_healthy
+    networks: [dbnet]
+
+  haproxy-reloader:
+    image: python:3.12-slim
+    container_name: haproxy-reloader
+    hostname: haproxy-reloader
+    command: ["python", "/app/reloader.py"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./runtime:/shared
+      - ./reloader.py:/app/reloader.py:ro
+    networks: [dbnet]
+
+  orchestrator:
+    image: openarkcode/orchestrator:latest
+    container_name: orchestrator
+    hostname: orchestrator
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./orchestrator.conf.json:/etc/orchestrator.conf.json:ro
+      - ./hooks/on-failover.sh:/usr/local/bin/on-failover.sh:ro
+    depends_on:
+      orchestrator-db:
+        condition: service_healthy
+    networks: [dbnet]
