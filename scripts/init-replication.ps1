@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 function Invoke-Sql {
     param([string]$Container, [string]$Sql)
-    docker exec $Container mysql -uroot -prootpass -e $Sql
+    docker exec -e MYSQL_PWD=rootpass $Container mysql -uroot -e $Sql
 }
 
 $shards = @(

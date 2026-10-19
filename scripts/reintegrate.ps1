@@ -8,7 +8,7 @@ $ErrorActionPreference = "Continue"
 
 function Invoke-Sql {
     param([string]$Container, [string]$Sql)
-    docker exec $Container mysql -uroot -prootpass -e $Sql 2>$null
+    docker exec -e MYSQL_PWD=rootpass $Container mysql -uroot -e $Sql 2>$null
 }
 
 Write-Host "Reintegrating $Demoted as a replica of $NewMaster ..."
@@ -21,8 +21,8 @@ Invoke-Sql $Demoted $sql
 
 Start-Sleep -Seconds 5
 
-$status = docker exec $Demoted mysql -uroot -prootpass -N -e "SELECT @@read_only; SELECT SERVICE_STATE FROM performance_schema.replication_connection_status; SELECT SERVICE_STATE FROM performance_schema.replication_applier_status;" 2>$null
+$status = docker exec -e MYSQL_PWD=rootpass $Demoted mysql -uroot -N -e "SELECT @@read_only; SELECT SERVICE_STATE FROM performance_schema.replication_connection_status; SELECT SERVICE_STATE FROM performance_schema.replication_applier_status;" 2>$null
 Write-Host "$Demoted => read_only / IO / SQL : $($status -join ' / ')"
 
-$masterHost = docker exec $Demoted mysql -uroot -prootpass -N -e "SELECT MASTER_HOST FROM performance_schema.replication_connection_status;" 2>$null
+$masterHost = docker exec -e MYSQL_PWD=rootpass $Demoted mysql -uroot -N -e "SELECT HOST, PORT FROM performance_schema.replication_connection_configuration;"
 Write-Host "$Demoted is now replicating from $masterHost"

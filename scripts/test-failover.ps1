@@ -67,7 +67,7 @@ if ($LASTEXITCODE -ne 0) { throw "post-failover write failed" }
 
 Write-Host ""
 Write-Host "[6] markers on promoted master $promoted :"
-docker exec $promoted mysql -uroot -prootpass -N -e "SELECT customer_id, name FROM shop.customers WHERE customer_id IN ($markerId, $markerId2) ORDER BY customer_id" 2>$null
+docker exec -e MYSQL_PWD=rootpass $promoted mysql -uroot -N -e "SELECT customer_id, name FROM shop.customers WHERE customer_id IN ($markerId, $markerId2) ORDER BY customer_id"
 
 Write-Host ""
 Write-Host "RESULT: $master failed -> $promoted promoted in ${elapsed}s (Orchestrator + HAProxy hook)"

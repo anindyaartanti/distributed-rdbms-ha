@@ -24,7 +24,7 @@ python $router list
 
 Write-Host ""
 Write-Host "[4] Partition pruning pada tabel orders (Shard A master)"
-docker exec shard-a-master mysql -uroot -prootpass -e "EXPLAIN SELECT * FROM shop.orders WHERE order_date >= '2026-01-01'\G" 2>$null |
+docker exec -e MYSQL_PWD=rootpass shard-a-master mysql -uroot -e "EXPLAIN SELECT * FROM shop.orders WHERE order_date >= '2026-01-01'\G" 2>$null |
     Select-String -Pattern "partitions"
 
 Write-Host ""

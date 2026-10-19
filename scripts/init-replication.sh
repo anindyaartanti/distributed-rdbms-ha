@@ -2,7 +2,7 @@
 set -euo pipefail
 
 sql() {
-  docker exec "$1" mysql -uroot -prootpass -e "$2"
+  docker exec -e MYSQL_PWD=rootpass "$1" mysql -uroot -e "$2"
 }
 
 setup_shard() {
